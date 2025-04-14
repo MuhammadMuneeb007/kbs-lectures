@@ -1,0 +1,587 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Perceptron Algorithm Demo</title>
+    <style>
+        body {
+            font-family: Arial, sans-serif;
+            max-width: 1000px;
+            margin: 0 auto;
+            padding: 20px;
+            line-height: 1.6;
+        }
+        h1 {
+            color: #2c3e50;
+            text-align: center;
+        }
+        .container {
+            display: flex;
+            flex-direction: column;
+            gap: 20px;
+        }
+        .control-panel {
+            border: 1px solid #ddd;
+            padding: 15px;
+            border-radius: 5px;
+            background-color: #f9f9f9;
+        }
+        .visualization {
+            border: 1px solid #ddd;
+            padding: 15px;
+            border-radius: 5px;
+            background-color: #fff;
+            min-height: 400px;
+        }
+        .data-table, .steps-table {
+            width: 100%;
+            border-collapse: collapse;
+            margin-bottom: 20px;
+        }
+        .data-table th, .data-table td, .steps-table th, .steps-table td {
+            padding: 8px;
+            border: 1px solid #ddd;
+            text-align: center;
+        }
+        .data-table th, .steps-table th {
+            background-color: #f2f2f2;
+        }
+        button {
+            padding: 8px 16px;
+            background-color: #3498db;
+            color: white;
+            border: none;
+            border-radius: 4px;
+            cursor: pointer;
+            font-size: 14px;
+            margin-right: 10px;
+        }
+        button:hover {
+            background-color: #2980b9;
+        }
+        input[type="number"] {
+            width: 60px;
+            padding: 5px;
+            margin-right: 5px;
+        }
+        .input-group {
+            display: flex;
+            align-items: center;
+            margin-bottom: 10px;
+        }
+        .input-group label {
+            min-width: 150px;
+        }
+        #canvas {
+            border: 1px solid #ccc;
+            margin-top: 20px;
+            background-color: #f8f8f8;
+        }
+        .output-container {
+            margin-top: 20px;
+            border: 1px solid #ddd;
+            padding: 15px;
+            border-radius: 5px;
+            background-color: #f9f9f9;
+            max-height: 500px;
+            overflow-y: auto;
+        }
+        .step {
+            margin-bottom: 15px;
+            padding: 10px;
+            border-left: 3px solid #3498db;
+            background-color: #ecf0f1;
+        }
+        .sample-btn {
+            background-color: #2ecc71;
+        }
+        .sample-btn:hover {
+            background-color: #27ae60;
+        }
+        .clear-btn {
+            background-color: #e74c3c;
+        }
+        .clear-btn:hover {
+            background-color: #c0392b;
+        }
+        .formula {
+            font-style: italic;
+            background-color: #f0f0f0;
+            padding: 2px 4px;
+            border-radius: 3px;
+        }
+        .correct {
+            color: green;
+        }
+        .incorrect {
+            color: red;
+        }
+        .math {
+            font-family: 'Times New Roman', Times, serif;
+        }
+    </style>
+</head>
+<body>
+    <h1>Perceptron Algorithm Interactive Demo</h1>
+    
+    <div class="container">
+        <div class="control-panel">
+            <h2>Training Configuration</h2>
+            <div class="input-group">
+                <label for="learning-rate">Learning Rate (η):</label>
+                <input type="number" id="learning-rate" value="0.1" step="0.01" min="0.01" max="1">
+            </div>
+            <div class="input-group">
+                <label for="epochs">Number of Epochs (T):</label>
+                <input type="number" id="epochs" value="3" min="1" max="100">
+            </div>
+            
+            <h2>Training Data</h2>
+            <table class="data-table" id="data-table">
+                <thead>
+                    <tr>
+                        <th>Point</th>
+                        <th>x₁</th>
+                        <th>x₂</th>
+                        <th>Class (y)</th>
+                        <th>Actions</th>
+                    </tr>
+                </thead>
+                <tbody id="data-body">
+                    <tr id="input-row">
+                        <td></td>
+                        <td><input type="number" id="new-x1" step="0.1"></td>
+                        <td><input type="number" id="new-x2" step="0.1"></td>
+                        <td>
+                            <select id="new-y">
+                                <option value="1">+1</option>
+                                <option value="-1">-1</option>
+                            </select>
+                        </td>
+                        <td>
+                            <button id="add-point">Add Point</button>
+                        </td>
+                    </tr>
+                </tbody>
+            </table>
+            
+            <button id="train-btn">Train Perceptron</button>
+            <button id="sample-btn" class="sample-btn">Load Sample Data</button>
+            <button id="clear-btn" class="clear-btn">Clear All</button>
+        </div>
+        
+        <div class="visualization">
+            <h2>Data Visualization</h2>
+            <canvas id="canvas" width="800" height="400"></canvas>
+        </div>
+        
+        <div class="output-container" id="output">
+            <h2>Training Steps</h2>
+            <div id="steps-output"></div>
+        </div>
+    </div>
+
+    <script>
+        // DOM elements
+        const addPointBtn = document.getElementById('add-point');
+        const dataBody = document.getElementById('data-body');
+        const newX1Input = document.getElementById('new-x1');
+        const newX2Input = document.getElementById('new-x2');
+        const newYInput = document.getElementById('new-y');
+        const trainBtn = document.getElementById('train-btn');
+        const sampleBtn = document.getElementById('sample-btn');
+        const clearBtn = document.getElementById('clear-btn');
+        const learningRateInput = document.getElementById('learning-rate');
+        const epochsInput = document.getElementById('epochs');
+        const stepsOutput = document.getElementById('steps-output');
+        const canvas = document.getElementById('canvas');
+        const ctx = canvas.getContext('2d');
+        
+        // Training data
+        let trainingData = [];
+        let weights = [0, 0, 0]; // [bias, w1, w2]
+        
+        // Canvas configuration
+        const canvasWidth = canvas.width;
+        const canvasHeight = canvas.height;
+        const padding = 40;
+        const scaleX = 40;
+        const scaleY = 40;
+        
+        // Initialize canvas
+        function initCanvas() {
+            ctx.clearRect(0, 0, canvasWidth, canvasHeight);
+            
+            // Draw axes
+            ctx.beginPath();
+            ctx.strokeStyle = '#000';
+            ctx.lineWidth = 1;
+            
+            // x-axis
+            ctx.moveTo(padding, canvasHeight / 2);
+            ctx.lineTo(canvasWidth - padding, canvasHeight / 2);
+            
+            // y-axis
+            ctx.moveTo(canvasWidth / 2, padding);
+            ctx.lineTo(canvasWidth / 2, canvasHeight - padding);
+            
+            // Draw ticks and labels
+            for (let i = -10; i <= 10; i++) {
+                // Skip 0 as it's the origin
+                if (i === 0) continue;
+                
+                // x-axis ticks
+                const tickXPos = canvasWidth / 2 + i * scaleX;
+                if (tickXPos >= padding && tickXPos <= canvasWidth - padding) {
+                    ctx.moveTo(tickXPos, canvasHeight / 2 - 5);
+                    ctx.lineTo(tickXPos, canvasHeight / 2 + 5);
+                    
+                    // Labels
+                    ctx.font = '10px Arial';
+                    ctx.fillStyle = '#000';
+                    ctx.textAlign = 'center';
+                    ctx.fillText(i.toString(), tickXPos, canvasHeight / 2 + 20);
+                }
+                
+                // y-axis ticks
+                const tickYPos = canvasHeight / 2 - i * scaleY;
+                if (tickYPos >= padding && tickYPos <= canvasHeight - padding) {
+                    ctx.moveTo(canvasWidth / 2 - 5, tickYPos);
+                    ctx.lineTo(canvasWidth / 2 + 5, tickYPos);
+                    
+                    // Labels
+                    ctx.font = '10px Arial';
+                    ctx.fillStyle = '#000';
+                    ctx.textAlign = 'right';
+                    ctx.fillText(i.toString(), canvasWidth / 2 - 10, tickYPos + 4);
+                }
+            }
+            
+            // Draw origin label
+            ctx.font = '10px Arial';
+            ctx.fillStyle = '#000';
+            ctx.textAlign = 'center';
+            ctx.fillText('0', canvasWidth / 2, canvasHeight / 2 + 20);
+            
+            // Axis labels
+            ctx.font = '12px Arial';
+            ctx.fillStyle = '#000';
+            ctx.textAlign = 'center';
+            ctx.fillText('x₁', canvasWidth - padding + 20, canvasHeight / 2 + 5);
+            ctx.fillText('x₂', canvasWidth / 2 + 5, padding - 10);
+            
+            ctx.stroke();
+        }
+        
+        // Plot a data point
+        function plotPoint(x1, x2, y) {
+            const canvasX = canvasWidth / 2 + x1 * scaleX;
+            const canvasY = canvasHeight / 2 - x2 * scaleY;
+            
+            ctx.beginPath();
+            ctx.arc(canvasX, canvasY, 6, 0, 2 * Math.PI);
+            
+            if (y === 1) {
+                ctx.fillStyle = '#3498db';
+            } else {
+                ctx.fillStyle = '#e74c3c';
+            }
+            
+            ctx.fill();
+            ctx.stroke();
+        }
+        
+        // Plot decision boundary (line)
+        function plotDecisionBoundary(weights) {
+            // w0 + w1*x1 + w2*x2 = 0
+            // x2 = -(w0 + w1*x1) / w2
+            
+            if (weights[2] === 0) {
+                // Vertical line at x1 = -w0/w1
+                if (weights[1] === 0) return; // No line to draw if both w1 and w2 are 0
+                
+                const x1 = -weights[0] / weights[1];
+                const canvasX = canvasWidth / 2 + x1 * scaleX;
+                
+                ctx.beginPath();
+                ctx.strokeStyle = '#2ecc71';
+                ctx.lineWidth = 2;
+                ctx.moveTo(canvasX, padding);
+                ctx.lineTo(canvasX, canvasHeight - padding);
+                ctx.stroke();
+            } else {
+                // Line equation: x2 = -(w0 + w1*x1) / w2
+                const x1Start = -10;
+                const x1End = 10;
+                
+                const x2Start = -(weights[0] + weights[1] * x1Start) / weights[2];
+                const x2End = -(weights[0] + weights[1] * x1End) / weights[2];
+                
+                const canvasX1 = canvasWidth / 2 + x1Start * scaleX;
+                const canvasY1 = canvasHeight / 2 - x2Start * scaleY;
+                const canvasX2 = canvasWidth / 2 + x1End * scaleX;
+                const canvasY2 = canvasHeight / 2 - x2End * scaleY;
+                
+                ctx.beginPath();
+                ctx.strokeStyle = '#2ecc71';
+                ctx.lineWidth = 2;
+                ctx.moveTo(canvasX1, canvasY1);
+                ctx.lineTo(canvasX2, canvasY2);
+                ctx.stroke();
+            }
+        }
+        
+        // Update canvas with data and decision boundary
+        function updateCanvas() {
+            initCanvas();
+            
+            // Plot data points
+            trainingData.forEach(point => {
+                plotPoint(point.x1, point.x2, point.y);
+            });
+            
+            // Plot decision boundary if weights are set
+            if (weights.some(w => w !== 0)) {
+                plotDecisionBoundary(weights);
+            }
+        }
+        
+        // Add new training point
+        function addPoint() {
+            const x1 = parseFloat(newX1Input.value);
+            const x2 = parseFloat(newX2Input.value);
+            const y = parseInt(newYInput.value);
+            
+            if (isNaN(x1) || isNaN(x2)) {
+                alert('Please enter valid coordinates.');
+                return;
+            }
+            
+            trainingData.push({ x1, x2, y });
+            
+            // Add to table
+            const pointIndex = trainingData.length;
+            const newRow = document.createElement('tr');
+            newRow.innerHTML = `
+                <td>${pointIndex}</td>
+                <td>${x1}</td>
+                <td>${x2}</td>
+                <td>${y === 1 ? '+1' : '-1'}</td>
+                <td>
+                    <button class="delete-btn" data-index="${pointIndex - 1}">Delete</button>
+                </td>
+            `;
+            
+            dataBody.insertBefore(newRow, document.getElementById('input-row'));
+            
+            // Clear input fields
+            newX1Input.value = '';
+            newX2Input.value = '';
+            
+            // Update canvas
+            updateCanvas();
+            
+            // Add event listener to delete button
+            newRow.querySelector('.delete-btn').addEventListener('click', function() {
+                const index = parseInt(this.getAttribute('data-index'));
+                deletePoint(index);
+            });
+        }
+        
+        // Delete a training point
+        function deletePoint(index) {
+            trainingData.splice(index, 1);
+            
+            // Update table
+            updateDataTable();
+            
+            // Update canvas
+            updateCanvas();
+        }
+        
+        // Update the entire data table
+        function updateDataTable() {
+            // Clear table (except input row)
+            while (dataBody.firstChild && dataBody.firstChild !== document.getElementById('input-row')) {
+                dataBody.removeChild(dataBody.firstChild);
+            }
+            
+            // Repopulate table
+            trainingData.forEach((point, index) => {
+                const newRow = document.createElement('tr');
+                newRow.innerHTML = `
+                    <td>${index + 1}</td>
+                    <td>${point.x1}</td>
+                    <td>${point.x2}</td>
+                    <td>${point.y === 1 ? '+1' : '-1'}</td>
+                    <td>
+                        <button class="delete-btn" data-index="${index}">Delete</button>
+                    </td>
+                `;
+                
+                dataBody.insertBefore(newRow, document.getElementById('input-row'));
+                
+                // Add event listener to delete button
+                newRow.querySelector('.delete-btn').addEventListener('click', function() {
+                    const idx = parseInt(this.getAttribute('data-index'));
+                    deletePoint(idx);
+                });
+            });
+        }
+        
+        // Load sample data
+        function loadSampleData() {
+            trainingData = [
+                { x1: 1, x2: 2, y: 1 },
+                { x1: 2, x2: 1, y: 1 },
+                { x1: 0, x2: 0, y: -1 },
+                { x1: -1, x2: 1, y: -1 }
+            ];
+            
+            // Update table
+            updateDataTable();
+            
+            // Update canvas
+            updateCanvas();
+        }
+        
+        // Clear all data
+        function clearAll() {
+            trainingData = [];
+            weights = [0, 0, 0];
+            stepsOutput.innerHTML = '';
+            
+            // Update table
+            updateDataTable();
+            
+            // Update canvas
+            updateCanvas();
+        }
+        
+        // Dot product of two vectors
+        function dotProduct(vec1, vec2) {
+            return vec1.reduce((sum, val, i) => sum + val * vec2[i], 0);
+        }
+        
+        // Train perceptron algorithm
+        function trainPerceptron() {
+            if (trainingData.length === 0) {
+                alert('Please add training data first.');
+                return;
+            }
+            
+            const learningRate = parseFloat(learningRateInput.value);
+            const epochs = parseInt(epochsInput.value);
+            
+            if (isNaN(learningRate) || isNaN(epochs) || learningRate <= 0 || epochs <= 0) {
+                alert('Please enter valid learning rate and number of epochs.');
+                return;
+            }
+            
+            // Initialize weights
+            weights = [0, 0, 0]; // [bias, w1, w2]
+            
+            // Clear output
+            stepsOutput.innerHTML = '';
+            
+            // Add initial weights
+            stepsOutput.innerHTML += `
+                <div class="step">
+                    <h3>Initialization</h3>
+                    <p>Initialize weights: w = [${weights.join(', ')}] (bias, w₁, w₂)</p>
+                </div>
+            `;
+            
+            // Training loop
+            for (let epoch = 0; epoch < epochs; epoch++) {
+                const epochStepsHTML = `<div class="step">
+                    <h3>Epoch ${epoch + 1}</h3>
+                `;
+                
+                let epochOutput = '';
+                let weightsChanged = false;
+                
+                // Iterate through each training example
+                for (let i = 0; i < trainingData.length; i++) {
+                    const point = trainingData[i];
+                    
+                    // Create augmented input with bias term
+                    const x = [1, point.x1, point.x2];
+                    
+                    // Calculate prediction
+                    const dotProd = dotProduct(weights, x);
+                    const prediction = dotProd > 0 ? 1 : -1;
+                    
+                    // Check if weights need to be updated
+                    const needsUpdate = point.y * dotProd <= 0;
+                    
+                    epochOutput += `
+                        <p><strong>Point ${i + 1}:</strong> (${point.x1}, ${point.x2}), y = ${point.y}</p>
+                        <p>Augmented input x = [1, ${point.x1}, ${point.x2}]</p>
+                        <p>Current weights w = [${weights.join(', ')}]</p>
+                        <p>w·x = ${weights.join(' × ') + ' × ' + x.join(' + ')} = ${dotProd.toFixed(2)}</p>
+                        <p>Prediction: ${prediction} (${prediction === point.y ? '<span class="correct">Correct</span>' : '<span class="incorrect">Incorrect</span>'})</p>
+                    `;
+                    
+                    if (needsUpdate) {
+                        // Update weights
+                        const oldWeights = [...weights];
+                        weights = weights.map((w, j) => w + learningRate * point.y * x[j]);
+                        
+                        epochOutput += `
+                            <p>Update needed!</p>
+                            <p class="formula">w = w + η·y·x</p>
+                            <p>w = [${oldWeights.join(', ')}] + ${learningRate} × ${point.y} × [${x.join(', ')}] = [${weights.join(', ')}]</p>
+                        `;
+                        
+                        weightsChanged = true;
+                    } else {
+                        epochOutput += `<p>No update needed.</p>`;
+                    }
+                    
+                    epochOutput += `<hr>`;
+                }
+                
+                stepsOutput.innerHTML += epochStepsHTML + epochOutput + `
+                    <p><strong>End of Epoch ${epoch + 1}</strong>: Final weights w = [${weights.join(', ')}]</p>
+                    <p>${weightsChanged ? 'Weights were updated during this epoch.' : 'No weights were updated during this epoch (converged).'}</p>
+                </div>`;
+                
+                // If no weights changed, we have converged
+                if (!weightsChanged) {
+                    stepsOutput.innerHTML += `
+                        <div class="step">
+                            <h3>Convergence</h3>
+                            <p>The algorithm has converged after ${epoch + 1} epochs.</p>
+                        </div>
+                    `;
+                    break;
+                }
+            }
+            
+            // Final decision boundary
+            stepsOutput.innerHTML += `
+                <div class="step">
+                    <h3>Final Result</h3>
+                    <p>Final weights: w* = [${weights.join(', ')}]</p>
+                    <p>Decision boundary equation: ${weights[0]} + ${weights[1]}·x₁ + ${weights[2]}·x₂ = 0</p>
+                    ${weights[2] !== 0 ? `<p>Which can be rewritten as: x₂ = ${(-weights[0]/weights[2]).toFixed(2)} ${weights[1] > 0 ? '-' : '+'} ${Math.abs(weights[1]/weights[2]).toFixed(2)}·x₁</p>` : ''}
+                </div>
+            `;
+            
+            // Update canvas
+            updateCanvas();
+        }
+        
+        // Event listeners
+        addPointBtn.addEventListener('click', addPoint);
+        trainBtn.addEventListener('click', trainPerceptron);
+        sampleBtn.addEventListener('click', loadSampleData);
+        clearBtn.addEventListener('click', clearAll);
+        
+        // Initialize canvas
+        initCanvas();
+    </script>
+</body>
+</html>
